@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}主页{% endblock %}
+{% block css %}
+<link rel="stylesheet" href="{% static 'css/login.css' %}" type="text/css">
+
+<script language="JavaScript" type="text/javascript">
+    // 刷新 预约状态栏 预约成功显示成功<h2>
+    function mychangeh2(tarid) {
+        var car_status = {
+            {
+            car_status
+        }
+    };
+    var tar = document.getElementById(tarid);
+    if (car_status === 0) {
+        tar.style.display = "none";
+    } else if (car_status === 1) {
+        tar.style.display = "block";
+    }
+    }
+    setTimeout('mychangeh2("yuyueh2")', 500); // 每0.5秒 刷新 提示框
+    // 同意预约 提交按钮可用
+    function mycheck() {
+        var mytar = document.getElementById("aswitch1");
+        if (mytar.checked === true) {
+            document.getElementById("tijiao1").disabled = "";
+            document.getElementById("yuyuediv1").style.display = "block";
+        } else {
+            document.getElementById("tijiao1").disabled = "disabled";
+            document.getElementById("yuyuediv1").style.display = "none";
+        }
+    }
+
+    // 刷新页面
+    function myrefresh() {
+        //window.location.reload();
+        //$("#bright").load(location.href);
+    }
+
+    setTimeout('myrefresh()', 10000); //指定 10秒刷新一次
+    // 刷新车位状态
+    function toggle(targetid) {
+        var bright = {
+            {
+            bright
+        }
+    };
+    var target = document.getElementById(targetid);
+    var tar = document.getElementById("div1"); //改变 框的颜色
+    if (bright === 0) {
+        target.style.display = "none";
+        tar.style.border = "1px #0f0f0f solid";
+    } else if (bright === 1) {
+        target.style.display = "block";
+        tar.style.border = "2px #FF0E18 solid";
+    }
+    }
+
+    setTimeout('toggle("acar1")', 500); // 刷新小车座位 1号
+</script>
+<style type="text/css">
+    .div {
+        border: 1px #0f0f0f solid;
+        height: 150px;
+        width: 150px;
+    }
+
+    .img {
+        height: 140px;
+        width: 140px;
+        display: none;
+    }
+
+    .yuyuediv {
+        display: none;
+        width: 140px;
+        color: #ffaeb0;
+    }
+</style>
+{% endblock %}
+{% block content %}
+{% if request.session.is_login %}
+<div class="container">
+    <div class="row">
+        <h1>你好,{{ request.session.user_name }}！欢迎回来！</h1>
+        <h2>
+            <div id="bright">
+                {{ bright }}红外信号
+            </div>
+            <div>
+                {{ car_status }}车位预约信号
+            </div>
+        </h2>
+        <div class="col-sm-6 col-lg-4">
+            <h2 class="h4">1号车位</h2>
+            <h2 id="yuyueh2" class="h4">已预约</h2>
+
+            <div id="div1" class="div">
+                <img id="acar1" class="img" src="{% static 'img/car.png' %}" alt="">
+            </div>
+            <form method="post" action="/postex/">
+                {% csrf_token %}
+                <div>
+                    <input id="aswitch1" type="checkbox" onclick="mycheck()" />是否预约
+                </div>
+                <button id="tijiao1" disabled="" type="submit" class="btn btn-primary">提交</button>
+                <div id="yuyuediv1" class="yuyuediv">请提交</div>
+            </form>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+            <div>
+                <input id="aswitch2" type="checkbox" class="checkbox" value="2" />
+            </div>
+            <h2 class="h4">2号车位</h2>
+
+            <div id="div2" class="div">
+                <img id="acar2" class="img" src="{% static 'img/car.png' %}" alt="">
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+            <div>
+                <input id="aswitch3" type="checkbox" class="checkbox" value="3" />
+            </div>
+            <h2 class="h4">3号车位</h2>
+            {# <a href="#" onclick="toggle('div1')">显示/隐藏</a>#}
+            <div id="div3" class="div">
+                <img id="acar3" class="img" src="{% static 'img/car.png' %}" alt="">
+            </div>
+        </div>
+    </div>
+
+</div>
+{% else %}
+<h1>你尚未登录，只能访问公开内容！</h1>
+{% endif %}
+{% endblock %}
