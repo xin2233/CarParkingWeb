@@ -14,7 +14,7 @@
 
 | 组件 | 说明 |
 | --- | --- |
-| Django 2.2 | Web 框架（Python 3.8 / 3.9，见下文环境要求） |
+| Django 4.2 | Web 框架（Python 3.8+，推荐 3.10+） |
 | MySQL | 数据库（库名 `auth_db`） |
 | django-simple-captcha | 登录/注册图形验证码 |
 | Bootstrap 3.3.7 / jQuery 3.4.1 | 前端页面与交互 |
@@ -24,7 +24,7 @@
 
 ### 环境要求
 
-- **Python 3.8 或 3.9（推荐）**。注意：Django 2.2 不支持 Python 3.10+（Django 2.2 官方支持 3.5–3.9）；若需在更高版本 Python 下运行，请升级 Django 至 4.2+ 并相应适配 `signup/settings.py`。
+- **Python 3.8+（推荐 3.10+）**，基于 Django 4.2 LTS。
 - MySQL 5.7+，可正常连接。
 
 ### 1. 安装依赖
@@ -112,10 +112,10 @@ CarParkingWeb/
 
 ## 账号体系说明
 
-- **Web 端注册的用户**保存在 `login.models.User`（自定义模型），密码使用 SHA-256 + 盐（`'mysite'`）哈希，与 Django 内置认证是**两套独立体系**。
-- 通过 `createsuperuser` 创建的**后台管理员不能登录 Web 端**，反之亦然；后台账号仅用于 Admin 管理数据。
-- 因此首次部署后，前台账号需要自己到注册页注册。
+- 用户账号使用 **Django 内置认证**（`django.contrib.auth`），密码采用 Django 的 PBKDF2 哈希；性别等附加信息保存在 `login.models.Profile`。
+- 通过 `createsuperuser` 创建的后台管理员同样可以登录 Web 端。
 - 访问控制：首页与预约操作要求网页登录；设备接口要求 token。
+- 运行测试无需 MySQL：`DJANGO_DB=sqlite python manage.py test login`。
 
 ## 部署（uWSGI + Nginx）
 

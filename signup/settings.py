@@ -81,20 +81,32 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'signup.wsgi.application'
 
+# 登录视图地址（@login_required 使用）
+LOGIN_URL = '/login/'
+
 
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',   # 数据库引擎
-        'NAME': 'auth_db',         # 你要存储数据的库名，事先要创建之
-        'USER': 'root',         # 数据库用户名
-        'PASSWORD': '',     # 密码
-        'HOST': '127.0.0.1',    # 主机
-        'PORT': '3306',         # 数据库使用的端口
+if os.environ.get('DJANGO_DB') == 'sqlite':
+    # 测试/CI 用：无需 MySQL，通过 DJANGO_DB=sqlite 启用
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',   # 数据库引擎
+            'NAME': 'auth_db',         # 你要存储数据的库名，事先要创建之
+            'USER': 'root',         # 数据库用户名
+            'PASSWORD': '',     # 密码
+            'HOST': '127.0.0.1',    # 主机
+            'PORT': '3306',         # 数据库使用的端口
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/2.2/ref/settings/#auth-password-validators
@@ -128,6 +140,15 @@ USE_L10N = True
 
 USE_TZ = False
 
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+# 设备标识与鉴权 token：生产环境通过环境变量设置随机 token，不可使用默认值
+DEVICE_KEY = os.environ.get('DEVICE_KEY', '123')
+DEVICE_TOKEN = os.environ.get('DEVICE_TOKEN', '123')
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
