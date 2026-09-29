@@ -1,15 +1,13 @@
-# 智能停车场管理系统（CarParkingWeb）
+# CarParkingWeb 停车场管理系统
 
-基于 Django 的智能停车场 **服务器端** 项目。配套树莓派等设备端通过 HTTP 接口上报红外传感器数据、查询与切换车位预约状态；网页端提供用户注册/登录、设备状态展示与车位预约控制。前端基于 Bootstrap 3 实现。
+基于 Django 的停车场**服务器端**项目。树莓派等设备端通过 HTTP 接口上报红外传感器数据、查询与切换车位预约状态；网页端提供用户注册/登录、车位状态展示与预约控制。前端基于 Bootstrap 3。
 
-> 本项目最初编写于 2021 年，是个人学习**物联网**时的服务器端实战项目：设备端（树莓派）采集红外传感器与温湿度数据上报至服务器，用户通过网页实时查看车位状态并远程预约车位。项目经调试后开源，**仅供学习交流使用**。
-
-## 功能特性
+## 功能
 
 - 用户注册 / 登录 / 登出（带图形验证码，`django-simple-captcha`）
-- 设备状态实时展示：温度、湿度、红外信号（`bright`）、车位预约状态（`car_status`）
+- 车位状态展示：温度、湿度、红外信号（`bright`）、车位预约状态（`car_status`）
 - 车位预约：网页按钮一键切换预约状态
-- 设备端 HTTP 接口：数据上报、状态查询、预约控制（详见下文）
+- 设备端 HTTP 接口：数据上报、状态查询（见下文）
 - Django Admin 后台：管理用户与设备信息
 
 ## 技术栈
@@ -48,7 +46,17 @@ CREATE DATABASE auth_db DEFAULT CHARACTER SET utf8mb4;
 
 然后在 `signup/settings.py` 的 `DATABASES` 中，将 `USER` / `PASSWORD` / `HOST` / `PORT` 改为你本机的 MySQL 配置。
 
-### 3. 初始化
+### 3. 配置环境变量
+
+| 环境变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `DJANGO_SECRET_KEY` | Django 密钥，**生产环境必须设置** | 开发用占位值 |
+| `DJANGO_DEBUG` | 设为 `0` 关闭调试模式 | `1`（开启） |
+| `DJANGO_ALLOWED_HOSTS` | 逗号分隔的主机列表 | `127.0.0.1,localhost` |
+| `DEVICE_KEY` | 设备标识 | `123` |
+| `DEVICE_TOKEN` | 设备接口鉴权 token，**生产环境必须设置为随机长字符串** | `123` |
+
+### 4. 初始化
 
 ```bash
 python manage.py makemigrations   # 仓库不包含迁移文件（已被 .gitignore 排除），首次必须执行
@@ -56,7 +64,7 @@ python manage.py migrate
 python manage.py createsuperuser  # 创建后台管理员
 ```
 
-### 4. 运行
+### 5. 运行
 
 ```bash
 python manage.py runserver 0.0.0.0:8000
@@ -65,9 +73,9 @@ python manage.py runserver 0.0.0.0:8000
 - 前台：<http://127.0.0.1:8000/>（注册账号后登录使用）
 - 后台：<http://127.0.0.1:8000/admin/>
 
-### 5. 初始化设备数据（必须！）
+### 6. 初始化设备数据（必须！）
 
-系统依赖一条 `device_key='123'` 的设备记录，否则首页与设备接口会直接报错。登录 Admin 后台，在「设备信息」中新增一条记录：
+系统依赖一条 `device_key='123'`（与 `DEVICE_KEY` 一致）的设备记录，否则首页与设备接口会提示数据缺失。登录 Admin 后台，在「设备信息」中新增一条记录：
 
 | 字段 | 值 |
 | --- | --- |
@@ -75,21 +83,19 @@ python manage.py runserver 0.0.0.0:8000
 | Tem | 1 |
 | Hum | 1 |
 | Bright | 1 |
-| Car status | 1 |
-
-> `'123'` 为代码中硬编码的设备号，如需修改请同步修改 `login/views.py`。
+| Car status | 0 |
 
 ## 设备端 HTTP 接口
 
-设备端（树莓派等）与服务器交互的接口约定：
+设备端（树莓派等）与服务器交互的接口约定。**除网页调用的 `/postex/` 外，所有接口都需要鉴权**：在请求头携带 `X-Device-Token: <DEVICE_TOKEN>`，或在参数中携带 `token=<DEVICE_TOKEN>`；鉴权失败返回 `'0'`。
 
 | 接口 | 方法 | 参数 | 说明 | 返回 |
 | --- | --- | --- | --- | --- |
-| `/getex/` | POST | `key`、`bright` | 设备上报红外数据，更新 `bright` 字段 | `'1'` 成功 / `'0'` 失败 |
-| `/motor/` | GET | 无 | 查询当前车位预约状态 | `'2'` 未预约 / `'3'` 已预约 |
-| `/postex/` | POST | 无（需 `csrf_token`） | 网页「提交预约」按钮调用，切换 `car_status` | 重定向至 `/index/` |
+| `/getex/` | POST | `key`、`bright`、token | 设备上报红外数据，更新 `bright` 字段 | `'1'` 成功 / `'0'` 失败 |
+| `/motor/` | GET | token | 查询当前车位预约状态 | `'2'` 未预约 / `'3'` 已预约 / `'0'` 失败 |
+| `/postex/` | POST | 无（需 `csrf_token`，且需网页登录） | 网页「提交预约」按钮调用，切换 `car_status` | 重定向至 `/index/` |
 
-其中 `/getex/` 已加 `@csrf_exempt`，无需 CSRF Token；`/postex/` 由网页表单调用，需携带 CSRF Token。
+其中 `/getex/`、`/motor/` 已加 `@csrf_exempt`，用 token 鉴权替代 CSRF；`/postex/` 由网页表单调用，需携带 CSRF Token。
 
 ## 项目结构
 
@@ -104,11 +110,12 @@ CarParkingWeb/
 └── uwsgi.ini          # uWSGI 部署示例
 ```
 
-## 账号体系说明（重要）
+## 账号体系说明
 
 - **Web 端注册的用户**保存在 `login.models.User`（自定义模型），密码使用 SHA-256 + 盐（`'mysite'`）哈希，与 Django 内置认证是**两套独立体系**。
 - 通过 `createsuperuser` 创建的**后台管理员不能登录 Web 端**，反之亦然；后台账号仅用于 Admin 管理数据。
 - 因此首次部署后，前台账号需要自己到注册页注册。
+- 访问控制：首页与预约操作要求网页登录；设备接口要求 token。
 
 ## 部署（uWSGI + Nginx）
 
@@ -118,7 +125,7 @@ CarParkingWeb/
 uwsgi --ini uwsgi.ini
 ```
 
-Nginx 将请求反向代理至 `127.0.0.1:8000` 即可。生产环境务必修改 `SECRET_KEY`、关闭 `DEBUG` 并收紧 `ALLOWED_HOSTS`。
+Nginx 将请求反向代理至 `127.0.0.1:8000` 即可。生产环境务必通过环境变量设置新的 `DJANGO_SECRET_KEY`、随机 `DEVICE_TOKEN`，设置 `DJANGO_DEBUG=0` 并收紧 `DJANGO_ALLOWED_HOSTS`。
 
 ## 开源协议
 

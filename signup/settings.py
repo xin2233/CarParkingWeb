@@ -20,16 +20,21 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'p80ys78zxm^4%%35zhkj(0+7me6d1_q0&!zxarz5p*%sim#d1h'
+# 生产环境务必通过环境变量 DJANGO_SECRET_KEY 提供新密钥；未设置时使用下方开发用默认值
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'p80ys78zxm^4%%35zhkj(0+7me6d1_q0&!zxarz5p*%sim#d1h',
+)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# 生产环境设置环境变量 DJANGO_DEBUG=0 关闭调试
+DEBUG = os.environ.get('DJANGO_DEBUG', '1') != '0'
 
-# 设置购买的阿里云服务器网址
-# ALLOWED_HOSTS = ["120.127.0.0.1:8000"]
-
-# 更改到本机服务器网址
-ALLOWED_HOSTS = ["*", '127.0.0.1:8000']
+# 生产环境通过环境变量 DJANGO_ALLOWED_HOSTS 提供逗号分隔的主机列表，如 "example.com,1.2.3.4"
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+    if h.strip()
+]
 
 
 # Application definition

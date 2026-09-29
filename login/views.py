@@ -1,12 +1,18 @@
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 import hashlib
+import os
 
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 
 from login import models
 from login.forms import UserForm, RegisterForm
+
+# 设备标识与鉴权 token：生产环境通过环境变量 DEVICE_TOKEN 设置随机值，不可使用默认值
+DEVICE_KEY = os.environ.get('DEVICE_KEY', '123')
+DEVICE_TOKEN = os.environ.get('DEVICE_TOKEN', '123')
+
 
 def hash_code(s, salt='mysite'):# 加点盐
     h = hashlib.sha256()
@@ -17,13 +23,19 @@ def hash_code(s, salt='mysite'):# 加点盐
 # 测试反馈函数
 
 
-@csrf_exempt  # 避免csrf ，在post表单中不需要添加｛%csrf_token%｝
+def _device_authenticated(request):
+    """设备接口鉴权：优先从 X-Device-Token 请求头取 token，兼容 POST 的 token 字段"""
+    token = request.headers.get('X-Device-Token') or request.POST.get('token') or request.GET.get('token')
+    return token == DEVICE_TOKEN
+
+
+@csrf_exempt  # 设备端无浏览器会话，使用 token 鉴权替代 CSRF
 def getex(request):
-    # pass
+    if not _device_authenticated(request):
+        return HttpResponse('0')
     key = request.POST.get('key')
     bright = request.POST.get('bright')
-    # key = request.GET.get('key')
-    if key == '123': # 设备号对应响应的设备
+    if key == DEVICE_KEY: # 设备号对应响应的设备
         # 检测到了数据
         models.UserDetail.objects.filter(device_key=key).update(bright=bright)  # 更新数据进入数据库
         return HttpResponse('1')
@@ -32,21 +44,28 @@ def getex(request):
         return HttpResponse('0')
 
 def postex(request):  # 和前端按钮 形成控制，单机按钮 电机转动一定角度
-    key = '123'
-    car_status = models.UserDetail.objects.filter(device_key=key).values()[0]['car_status'] # 读取数据
+    if not request.session.get('is_login', None):  # 未登录不允许切换预约状态
+        return redirect("/login/")
+    key = DEVICE_KEY
+    detail = models.UserDetail.objects.filter(device_key=key).first()
+    if detail is None:
+        return redirect("/index/")
+    car_status = detail.car_status  # 读取数据
     if car_status =="0":
         car_status = 1
     else:
         car_status = 0
     models.UserDetail.objects.filter(device_key=key).update(car_status=car_status)  # 更新数据进入数据库
-    # return HttpResponse('2')  # 电机信号
-    # pass
     return redirect("/index/")
 
 def motor(request):  # 响应树莓派请求的函数，根据数据库内的值，反馈响应数据 2 未预约  3 已预约
-    # key = request.GET.get('key')
-    key = '123'
-    car_status = models.UserDetail.objects.filter(device_key=key).values()[0]['car_status']  # 读取数据库中预约状态值 0 未预约 1 已预约
+    if not _device_authenticated(request):
+        return HttpResponse('0')
+    key = DEVICE_KEY
+    detail = models.UserDetail.objects.filter(device_key=key).first()
+    if detail is None:
+        return HttpResponse('0')
+    car_status = detail.car_status  # 读取数据库中预约状态值 0 未预约 1 已预约
     if car_status == "0":
         return HttpResponse('2')  # 未预约
     else:
@@ -54,11 +73,17 @@ def motor(request):  # 响应树莓派请求的函数，根据数据库内的值
 
 
 def index(request):
-    # pass
-    key = '123'
-    bright = models.UserDetail.objects.filter(device_key=key).values()[0]['bright']
-    car_status = models.UserDetail.objects.filter(device_key=key).values()[0]['car_status']
-    return render(request, 'index.html',locals())
+    if not request.session.get('is_login', None):  # 未登录不允许查看设备状态
+        return redirect("/login/")
+    key = DEVICE_KEY
+    detail = models.UserDetail.objects.filter(device_key=key).first()
+    if detail is None:
+        bright = None
+        car_status = None
+    else:
+        bright = detail.bright
+        car_status = detail.car_status
+    return render(request, 'index.html', {'bright': bright, 'car_status': car_status})
 
 
 def login(request):
@@ -80,7 +105,7 @@ def login(request):
                     return redirect('/index/')
                 else:
                     message = "密码不正确！"
-            except:
+            except models.User.DoesNotExist:
                 message = "用户不存在！"
         return render(request, 'login.html', locals())
 
